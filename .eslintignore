@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+*.log
+*.config.js
+*.config.ts
+jest.config.ts
