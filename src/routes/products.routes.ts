@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import { validateBody, validateQuery } from '../middleware/validateRequest.js';
+import {
+  CreateProductSchema,
+  UpdateProductSchema,
+  ProductFiltersSchema,
+} from '../schemas/productSchemas.js';
 import { ProductController } from '../controllers/ProductController.js';
 
 const router = Router();
@@ -39,7 +45,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Product'
  */
-router.get('/', ProductController.index);
+router.get('/', validateQuery(ProductFiltersSchema), ProductController.index);
 
 /**
  * @swagger
@@ -136,7 +142,7 @@ router.get('/:id', ProductController.show);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', ProductController.create);
+router.post('/', validateBody(CreateProductSchema), ProductController.create);
 
 /**
  * @swagger
@@ -179,7 +185,7 @@ router.post('/', ProductController.create);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', ProductController.update);
+router.put('/:id', validateBody(UpdateProductSchema), ProductController.update);
 
 /**
  * @swagger

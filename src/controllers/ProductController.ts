@@ -1,195 +1,85 @@
 import { Request, Response, NextFunction } from 'express';
-import Product from '../models/Product.js';
-import { Op } from 'sequelize';
+import { productService } from '../services/ProductService.js';
+import type { ProductFilters } from '../services/ProductService.js';
 
+/**
+ * ProductController
+ * Handles HTTP requests and delegates business logic to ProductService
+ */
 export class ProductController {
-  // GET /products - Listar todos os produtos com filtros opcionais
+  /**
+   * GET /products - List all products with optional filters
+   */
   static async index(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { category, inStock, search } = req.query;
+      const filters: ProductFilters = {
+        category: req.query.category as string | undefined,
+        inStock: req.query.inStock === 'true',
+        search: req.query.search as string | undefined,
+      };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const where: any = {};
-
-      if (category && typeof category === 'string') {
-        where.category = category;
-      }
-
-      if (inStock === 'true') {
-        where.stock = { [Op.gt]: 0 };
-      }
-
-      if (search && typeof search === 'string') {
-        where[Op.or] = [
-          { name: { [Op.like]: `%${search}%` } },
-          { sku: { [Op.like]: `%${search}%` } },
-        ];
-      }
-
-      const products = await Product.findAll({
-        where,
-        order: [['name', 'ASC']],
-      });
-
+      const products = await productService.getAll(filters);
       res.json(products);
     } catch (error) {
       next(error);
     }
   }
 
-  // GET /products/:id - Obter um produto específico
+  /**
+   * GET /products/:id - Get a specific product by ID
+   */
   static async show(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-
-      const product = await Product.findByPk(Number(id));
-
-      if (!product) {
-        res.status(404).json({
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Produto não encontrado',
-          },
-        });
-        return;
-      }
-
+      const product = await productService.getById(Number(req.params.id));
       res.json(product);
     } catch (error) {
       next(error);
     }
   }
 
-  // GET /products/sku/:sku - Obter um produto por SKU
+  /**
+   * GET /products/sku/:sku - Get a product by SKU
+   */
   static async findBySku(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { sku } = req.params;
-
-      const product = await Product.findOne({ where: { sku } });
-
-      if (!product) {
-        res.status(404).json({
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Produto não encontrado',
-          },
-        });
-        return;
-      }
-
+      const sku = Array.isArray(req.params.sku) ? req.params.sku[0] : req.params.sku;
+      const product = await productService.getBySku(sku);
       res.json(product);
     } catch (error) {
       next(error);
     }
   }
 
-  // POST /products - Criar novo produto
+  /**
+   * POST /products - Create a new product
+   */
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { sku, name, price, stock, category } = req.body;
-
-      // Validação básica
-      if (!sku || !name || price === undefined || stock === undefined || !category) {
-        res.status(400).json({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Campos obrigatórios: sku, name, price, stock, category',
-          },
-        });
-        return;
-      }
-
-      // Verificar se SKU já existe
-      const existingProduct = await Product.findOne({ where: { sku } });
-      if (existingProduct) {
-        res.status(409).json({
-          error: {
-            code: 'CONFLICT',
-            message: 'Produto com este SKU já existe',
-          },
-        });
-        return;
-      }
-
-      const product = await Product.create({
-        sku,
-        name,
-        price,
-        stock,
-        category,
-      });
-
+      const product = await productService.create(req.body);
       res.status(201).json(product);
     } catch (error) {
       next(error);
     }
   }
 
-  // PUT /products/:id - Atualizar produto
+  /**
+   * PUT /products/:id - Update a product
+   */
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      const { sku, name, price, stock, category } = req.body;
-
-      const product = await Product.findByPk(Number(id));
-
-      if (!product) {
-        res.status(404).json({
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Produto não encontrado',
-          },
-        });
-        return;
-      }
-
-      // Se o SKU está sendo alterado, verificar se não existe outro produto com o mesmo SKU
-      if (sku && sku !== product.sku) {
-        const existingProduct = await Product.findOne({ where: { sku } });
-        if (existingProduct) {
-          res.status(409).json({
-            error: {
-              code: 'CONFLICT',
-              message: 'Já existe outro produto com este SKU',
-            },
-          });
-          return;
-        }
-      }
-
-      await product.update({
-        ...(sku && { sku }),
-        ...(name && { name }),
-        ...(price !== undefined && { price }),
-        ...(stock !== undefined && { stock }),
-        ...(category && { category }),
-      });
-
+      const product = await productService.update(Number(req.params.id), req.body);
       res.json(product);
     } catch (error) {
       next(error);
     }
   }
 
-  // DELETE /products/:id - Deletar produto
+  /**
+   * DELETE /products/:id - Delete a product
+   */
   static async destroy(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-
-      const product = await Product.findByPk(Number(id));
-
-      if (!product) {
-        res.status(404).json({
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Produto não encontrado',
-          },
-        });
-        return;
-      }
-
-      await product.destroy();
-
+      await productService.delete(Number(req.params.id));
       res.status(204).send();
     } catch (error) {
       next(error);

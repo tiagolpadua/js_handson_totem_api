@@ -23,6 +23,7 @@ export default {
     '!src/types/**',
     '!src/**/*.d.ts',
     '!src/config/testDatabase.ts',
+    '!src/utils/logger.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html', 'json-summary'],
